@@ -44,3 +44,12 @@ def table_to_data_frame(in_table, input_fields=None, where_clause=None):
     fc_dataframe = fc_dataframe.set_index(OIDFieldName, drop=True)
     return(fc_dataframe.rename(columns=str.lower))
 
+
+def deleteGeodatabaseTables(GDB, table_list=[]):
+	tweet("MSG: Deleting Temporary Tables...", ap=arcpy)
+	arcpy.env.workspace = GDB
+	for t in arcpy.ListTables():
+		if(t in table_list):
+			arcpy.Delete_management(t)
+
+

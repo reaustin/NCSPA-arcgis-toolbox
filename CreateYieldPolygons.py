@@ -9,12 +9,17 @@ from importlib import reload
 reload(Tools.Functions)
 
 
+# load yield data - yield data that is sent to ths function must be projected, and units in feet
 def load_yield_data(yield_layer, yield_fld, distance, direction, width):
 	_yield_data = {}
 	_yld_sr = arcpy.Describe(yield_layer).SpatialReference
 
 	for row in arcpy.da.SearchCursor(yield_layer, ['OID@', 'SHAPE@XY', yield_fld.value, distance.value, direction.value, width.value]):
-		pt_geom = arcpy.Point(float(row[1][0]), float(row[1][1]))
+		yld_pt = arcpy.Point(float(row[1][0]), float(row[1][1]))
+		#pt_geom_wgs = arcpy.PointGeometry(pt_wgs, _yld_sr)
+		#pt_geom_spft = pt_geom_wgs.projectAs(to_sr, 'WGS_1984_(ITRF00)_To_NAD_1983')		# transform from WGS84 (assumed) to NC Stateplane feet   WKID = 108190
+		#f.tweet(pt_geom_spft.WKT, ap=arcpy)
+
 		_yield_data[row[0]] = { 				
 			'oid': row[0],
 			'pt': row[1],
@@ -22,7 +27,7 @@ def load_yield_data(yield_layer, yield_fld, distance, direction, width):
 			'dist': row[3],
 			'dir': row[4],
 			'width': row[5],
-			'center_pt_geom': arcpy.PointGeometry(pt_geom, _yld_sr)
+			'center_pt_geom': arcpy.PointGeometry(yld_pt, _yld_sr)
 			} 	
 	
 	return(_yield_data, _yld_sr)    
@@ -115,10 +120,21 @@ def convert_units(yld_data, conversion):
 		yld_data[p]['dist_c'] = yld_data[p]['dist'] * conversion
 
 
+# transform the yield layer to stateplane feet 
+def transform_layer(in_lyr, out_lyr, out_sr):
+	f.tweet("Msg: Transformng coordinates to NC Stateplane feet", ap=arcpy)
+	_yld_sr = arcpy.Describe(in_lyr).SpatialReference
+	arcpy.Project_management(in_lyr, out_lyr, out_sr)
+	return(out_lyr)
+
 
 # This is used to execute code if the file was run but not imported
 if __name__ == '__main__':
 
+	# always create the output data in NC stateplene, feet
+	OUT_SR = arcpy.SpatialReference(2264)		
+
+	# unit conversions
 	FT_PER_METER = 0.30480060960121924
 	METER_PER_FT = 1/FT_PER_METER
 
@@ -126,19 +142,33 @@ if __name__ == '__main__':
 	_toolparam = f.get_tool_param()
 	_mapparam = f.set_arcmap_param()  
 
-	_yld_data, _yld_sr = load_yield_data(_toolparam['yield_layer'], 
+	# temporary layer to hold reprojected yield layer
+	_yld_layer_temp =  os.path.join(_mapparam['scratch'], 'yld_temp') 
+
+	# transform coordinates to stateplane feet, using projectAs on single coordinates takes way to long!
+	_yld_lyr_stpft = transform_layer(_toolparam['yield_layer'], _yld_layer_temp, OUT_SR)
+
+
+	# load the yield data into a dictionary - layer data must be projected and units = feet
+	_yld_data, _yld_sr = load_yield_data(_yld_lyr_stpft, 
  										_toolparam['yield_field'], 
  										_toolparam['swath_distance'],
 										_toolparam['swath_direction'],
 										_toolparam['swath_width']
 	 									)
 
-	# convert the width and distance to meters - don;t undestand why this is needed right now
+	# convert the width and distance to meters - don't undestand why this is needed right now
 	convert_units(_yld_data, FT_PER_METER)
 
 	create_yield_polys(_yld_data)
 
-	#f.tweet(_yld_data[1], ap=arcpy)
+	_yld_lyr_filepath = create_layer(_yld_data, _toolparam, OUT_SR)
 
-	create_layer(_yld_data, _toolparam, _yld_sr)
+	f.deleteGeodatabaseTables(_mapparam['scratch'], ['yld_temp'])
+
+	# add layer to map
+	yld_lyr = _mapparam['maps'].addDataFromPath(_yld_lyr_filepath)
+
+	f.tweet("MSG: Alles fertig mein Freund..", ap=arcpy)
+
 
