@@ -73,10 +73,15 @@ def deleteGeodatabaseTables(GDB, table_list=[]):
 
 
 
-# clean up a data frame by removeing certain columns 
+# clean up a data frame by removing certain columns 
 def drop_columns(df, drop_columns=[], sort_by=None):
 	df.drop(columns=drop_columns, axis=1, errors='ignore', inplace=True)
 	if(sort_by is not None):
 		df.sort_values(by=sort_by, inplace=True)
 
 
+
+def rename_stat_columns(in_table, rename_fields=[], prefix=''):
+    for fld in rename_fields:
+        _new_field_name = prefix + fld 
+        arcpy.AlterField_management(in_table, fld, _new_field_name, _new_field_name)
