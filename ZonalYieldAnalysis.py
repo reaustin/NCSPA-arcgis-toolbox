@@ -1,7 +1,4 @@
-﻿from tkinter import S
-
-from sklearn.datasets import make_multilabel_classification
-import Tools.Functions
+﻿import Tools.Functions
 import Tools.Functions as f
 
 import os, sys
@@ -77,11 +74,7 @@ def summerize_dem(zone_layer, zone_field, dem_raster, out_stat_file):
 
 
 
-# craete a new field callled zone (which is the ObjectId) to calculate statistics and stay organized
-def create_zone_field(zone_layer, zone_fieldname):
-    f.tweet('Creating Zone field in new zone layer..{0}'.format(zone_fieldname), ap=arcpy) 
-    arcpy.AddField_management(zone_layer, zone_fieldname, 'LONG')
-    arcpy.CalculateField_management(zone_layer, zone_fieldname, '!OBJECTID!', "PYTHON3")   	
+   	
 
 
 # calculate the percent vegetaion from the classes in the classifed raster
@@ -140,10 +133,11 @@ if __name__ == '__main__':
 
     # create the fishnet of cells (i.e. zones)
     _zone_layer = create_zones(_zone_filepath, _toolparam['field_boundary'], _toolparam['cell_x'], _toolparam['cell_y'])
-    create_zone_field(_zone_layer, ZONE_FIELD)
+    
+    # add a new field that will be used as zones (ie. this is the ObjectID)
+    f.create_zone_field(_zone_layer, ZONE_FIELD)
 
     # summerize the yield data within the zones
-    _zone_oid_fieldname = arcpy.Describe(_zone_layer).OIDFieldName
     _yield_summary_layer = summerize_yield(_toolparam['yield_layer'], _toolparam['yield_field'], _zone_layer, ZONE_FIELD)
 
     # get the data from the yield summary layer 
