@@ -82,7 +82,7 @@ def calc_percent_vegetation(in_table, classified_columns, search_names=['veg', '
     _numerator, _sum_exp = '', ''
     for class_name in classified_columns:
         _sum_exp += "!{0}! + ".format(class_name)                                    # !soil! + !shadow! + !veg!
-        if(class_name in search_names):
+        if(class_name.lower() in search_names):
             _numerator = class_name
      
     if(_numerator is not None):
@@ -164,8 +164,12 @@ if __name__ == '__main__':
 
 
     ## calculate the zonal stats from the elevation dataset
+    _stat_files = []
     if(_toolparam['dem_raster']):
         _dem_data = f.set_raster_data(_toolparam['dem_raster'])
+        _demstat_file = _dem_data['name_base'] + "_dem_stat"
+        _stat_files.append(_demstat_file)
+
         _demstat_file = os.path.join(_mapparam['scratch'], _dem_data['name_base'] + "_dem_stat")
         _demstat_table = summerize_dem(_zone_layer, ZONE_FIELD,_toolparam['dem_raster'], _demstat_file)
     
@@ -183,18 +187,24 @@ if __name__ == '__main__':
 
 
     # Save the zonal statistics to a table
-    _out_zonestat_filepath = os.path.join(_mapparam['root'], "zone_stat.csv")
+    _zonestat_out_filename = _zone_filename + "_zone_stat.csv"
+    _stat_files.append(_zonestat_out_filename)
+    _out_zonestat_filepath = os.path.join(_mapparam['root'], _zonestat_out_filename)
+
     f.tweet("MSG: Saving Zonal Statistics\n  -> {0}".format(_out_zonestat_filepath), ap=arcpy)
     _classstat_df.to_csv(_out_zonestat_filepath, index=False)
 
 
     # join the results back into the zone layer
     arcpy.JoinField_management(_yield_summary_layer, ZONE_FIELD, _classstat_table, ZONE_FIELD)
-    arcpy.JoinField_management(_yield_summary_layer, ZONE_FIELD, _demstat_table, ZONE_FIELD)
+    if(_toolparam['dem_raster']):
+        arcpy.JoinField_management(_yield_summary_layer, ZONE_FIELD, _demstat_table, ZONE_FIELD)
 
     _mapparam['maps'].addDataFromPath(_yield_summary_layer)
 
     # do some hosuecleaning 
-    _stat_files = [_class_raster_data['name_base'] + '_zone_stat', _dem_data['name_base'] + '_dem_stat']
+    _stat_files = [_class_raster_data['name_base'] + '_zone_stat']
+    if(_toolparam['dem_raster']):
+        _stat_files.append(_dem_data['name_base'] + '_dem_stat')
     f.deleteGeodatabaseTables(_mapparam['scratch'], table_list=_stat_files)
 

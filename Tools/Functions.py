@@ -148,7 +148,7 @@ def calculate_percent_vegetation(in_table, classified_columns, search_names=['ve
     _numerator, _sum_exp = '', ''
     for class_name in classified_columns:
         _sum_exp += "!{0}! + ".format(class_name)                                    # !soil! + !shadow! + !veg!
-        if(class_name in search_names):
+        if(class_name.lower() in search_names):
             _numerator = class_name
      
     if(_numerator is not None):
